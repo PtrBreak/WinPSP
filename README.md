@@ -13,6 +13,7 @@ This tool is ideal for scenarios such as:
 - Ensuring deterministic shutdown behavior  
 
 WinPSP is written in Go, requires no dependencies, and runs as a single static executable.
+
 It also works on Windows Home Edition, which does not provide Group Policy support, allowing shutdown scripts to run even on systems without GPO.
 
 ---
