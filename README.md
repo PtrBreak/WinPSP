@@ -13,6 +13,7 @@ This tool is ideal for scenarios such as:
 - Ensuring deterministic shutdown behavior  
 
 WinBSP is written in Go, requires no dependencies, and runs as a single static executable.
+It also functions on Windows Home Edition, providing shutdown‑script capability on systems that lack Group Policy support.
 
 ---
 
