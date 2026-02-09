@@ -20,11 +20,11 @@ import (
 )
 
 const (
-    serviceName        = "WinBSP"
-    defaultConfigPath  = `C:\ProgramData\winbsp\config.json`
+    serviceName        = "WinPSP"
+    defaultConfigPath  = `C:\ProgramData\WinPSP\config.json`
     defaultLogCount    = 7
     defaultTimeoutSecs = 300 // 5 minutes
-    logFilePrefix      = "winbsp-"
+    logFilePrefix      = "winpsp-"
     logFileExt         = ".log"
 )
 
@@ -40,7 +40,7 @@ type Config struct {
     Timeout  int    `json:"timeout"` // seconds
 }
 
-type winbspService struct {
+type winpspService struct {
     configPath string
     config     *Config
 }
@@ -61,7 +61,7 @@ func main() {
     }
 
     if *showVersion {
-        fmt.Println("WinBSP version 0.1")
+        fmt.Println("WinPSP version 0.1")
         os.Exit(0)
     }
 
@@ -72,13 +72,13 @@ func main() {
 
     if !isInteractive {
 		// 服务模式
-        svc.Run(serviceName, &winbspService{configPath: *configPath})
+        svc.Run(serviceName, &winpspService{configPath: *configPath})
         return
     }
 
 	// 交互模式：简单跑一次 PRESHUTDOWN 流程，方便调试
     fmt.Println("Running in interactive mode (debug).")
-    s := &winbspService{configPath: *configPath}
+    s := &winpspService{configPath: *configPath}
     if err := s.loadConfig(); err != nil {
         fmt.Printf("Config error: %v\n", err)
         fmt.Println("Nothing will be executed. Exiting.")
@@ -90,7 +90,7 @@ func main() {
 }
 
 // -------------------- 服务实现 --------------------
-func (s *winbspService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
+func (s *winpspService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
     changes <- svc.Status{
         State:   svc.StartPending,
         Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPreShutdown,
@@ -125,7 +125,7 @@ func (s *winbspService) Execute(args []string, r <-chan svc.ChangeRequest, chang
 }
 
 func runWithConfig(path string) {
-    s := &winbspService{configPath: path}
+    s := &winpspService{configPath: path}
 
     if err := s.loadConfig(); err != nil {
         fmt.Printf("Config error: %v\n", err)
@@ -140,7 +140,7 @@ func runWithConfig(path string) {
 
 // -------------------- 配置加载 --------------------
 
-func (s *winbspService) loadConfig() error {
+func (s *winpspService) loadConfig() error {
     data, err := os.ReadFile(s.configPath)
     if err != nil {
         s.config = nil
@@ -189,7 +189,7 @@ func (s *winbspService) loadConfig() error {
 
 // -------------------- 关机处理 --------------------
 
-func (s *winbspService) handleShutdownOnce() error {
+func (s *winpspService) handleShutdownOnce() error {
     // 无配置 → 什么也不做，直接放行
     if s.config == nil {
         return nil
@@ -213,7 +213,7 @@ func (s *winbspService) handleShutdownOnce() error {
         fmt.Fprintf(logWriter, "[%s] %s\n", ts, line)
     }
 
-    logLine("WinBSP: Shutdown triggered (PRESHUTDOWN)")
+    logLine("WinPSP: Shutdown triggered (PRESHUTDOWN)")
     logLine("Running: %s", s.config.Command)
 
     exitCode, timedOut, execErr := runCommandWithTimeout(s.config.Command, time.Duration(s.config.Timeout)*time.Second)
@@ -233,7 +233,7 @@ func (s *winbspService) handleShutdownOnce() error {
 
 // -------------------- 日志文件管理 --------------------
 
-func (s *winbspService) openLogFile() (*os.File, io.Writer, error) {
+func (s *winpspService) openLogFile() (*os.File, io.Writer, error) {
     cfgDir := filepath.Dir(s.configPath)
     if err := os.MkdirAll(cfgDir, 0755); err != nil {
         return nil, nil, err
@@ -375,16 +375,16 @@ func exitCodeFromError(err error) int {
 
 // 帮助显示内容
 func printHelp() {
-    fmt.Println("WinBSP — Windows Pre-Shutdown Processor")
+    fmt.Println("WinPSP — Windows Pre-Shutdown Processor")
     fmt.Println()
     fmt.Println("Usage:")
-    fmt.Println("  winbsp --config <path>     Run WinBSP with the specified config file")
-    fmt.Println("  winbsp --help              Show this help message")
-    fmt.Println("  winbsp --version           Show WinBSP version")
+    fmt.Println("  winpsp --config <path>     Run WinPSP with the specified config file")
+    fmt.Println("  winpsp --help              Show this help message")
+    fmt.Println("  winpsp --version           Show WinPSP version")
     fmt.Println()
     fmt.Println("Notes:")
-    fmt.Println("  - When running as a Windows service, WinBSP ignores command-line flags")
+    fmt.Println("  - When running as a Windows service, WinPSP ignores command-line flags")
     fmt.Println("    except --config, which specifies the path to the JSON configuration.")
-    fmt.Println("  - WinBSP blocks system shutdown during the PRESHUTDOWN phase until all")
+    fmt.Println("  - WinPSP blocks system shutdown during the PRESHUTDOWN phase until all")
     fmt.Println("    configured commands have completed or timed out.")
 }
