@@ -6,13 +6,14 @@ It blocks the shutdown sequence until all configured tasks have completed or tim
 
 This tool is ideal for scenarios such as:
 
-- Flushing caches or buffers  
-- Syncing data to remote storage  
-- Gracefully stopping external systems  
-- Running cleanup or archival scripts  
-- Ensuring deterministic shutdown behavior  
+- Flushing caches or buffers
+- Syncing data to remote storage
+- Gracefully stopping external systems
+- Running cleanup or archival scripts
+- Ensuring deterministic shutdown behavior
 
 WinBSP is written in Go, requires no dependencies, and runs as a single static executable.
+
 It also functions on Windows Home Edition, providing shutdown‑script capability on systems that lack Group Policy support.
 
 ---
