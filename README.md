@@ -1,7 +1,7 @@
 # **WinBSP — Windows Pre‑Shutdown Processor**  
 *A lightweight, deterministic, and configurable processor for Windows’ PRESHUTDOWN phase.*
 
-WinBSP is a Windows service designed to execute user‑defined commands during the **PRESHUTDOWN** phase of system shutdown.  
+WinBSP is a Windows service designed to execute user‑defined commands during the **PRESHUTDOWN** phase of system shutdown. 
 It blocks the shutdown sequence until all configured tasks have completed or timed out, providing a reliable and auditable mechanism for pre‑shutdown automation.
 
 This tool is ideal for scenarios such as:
