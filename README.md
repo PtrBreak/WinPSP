@@ -1,20 +1,19 @@
-# **WinBSP — Windows Pre‑Shutdown Processor**  
+# **WinPSP — Windows Pre‑Shutdown Processor**  
 *A lightweight, deterministic, and configurable processor for Windows’ PRESHUTDOWN phase.*
 
-WinBSP is a Windows service designed to execute user‑defined commands during the **PRESHUTDOWN** phase of system shutdown. 
+WinPSP is a Windows service designed to execute user‑defined commands during the **PRESHUTDOWN** phase of system shutdown.  
 It blocks the shutdown sequence until all configured tasks have completed or timed out, providing a reliable and auditable mechanism for pre‑shutdown automation.
 
 This tool is ideal for scenarios such as:
 
-- Flushing caches or buffers
-- Syncing data to remote storage
-- Gracefully stopping external systems
-- Running cleanup or archival scripts
-- Ensuring deterministic shutdown behavior
+- Flushing caches or buffers  
+- Syncing data to remote storage  
+- Gracefully stopping external systems  
+- Running cleanup or archival scripts  
+- Ensuring deterministic shutdown behavior  
 
-WinBSP is written in Go, requires no dependencies, and runs as a single static executable.
-
-It also functions on Windows Home Edition, providing shutdown‑script capability on systems that lack Group Policy support.
+WinPSP is written in Go, requires no dependencies, and runs as a single static executable.
+It also works on Windows Home Edition, which does not provide Group Policy support, allowing shutdown scripts to run even on systems without GPO.
 
 ---
 
@@ -38,43 +37,43 @@ It also functions on Windows Home Edition, providing shutdown‑script capabilit
 
 Prebuilt binaries are available for:
 
-- `winbsp-x64.exe` (Windows 64‑bit)  
-- `winbsp-x86.exe` (Windows 32‑bit)  
-- `winbsp-arm64.exe` (Windows ARM64)
+- `winpsp-x64.exe` (Windows 64‑bit)  
+- `winpsp-x86.exe` (Windows 32‑bit)  
+- `winpsp-arm64.exe` (Windows ARM64)
 
 Place the executable in a permanent directory, e.g.:
 
 ```
-C:\ProgramData\WinBSP\
+C:\ProgramData\WinPSP\
 ```
 
 ---
 
 ## Service Installation
 
-Install the WinBSP service:
+Install the WinPSP service:
 
 ```
-sc create WinBSP binPath= "C:\ProgramData\WinBSP\winbsp.exe" start= demand obj= LocalSystem
-sc description WinBSP "Windows Pre-Shutdown Processor"
+sc create WinPSP binPath= "C:\ProgramData\WinPSP\winpsp.exe" start= auto obj= LocalSystem
+sc description WinPSP "Windows Pre-Shutdown Processor"
 ```
 
 Start the service:
 
 ```
-sc start WinBSP
+sc start WinPSP
 ```
 
 ---
 
 ## Configuration
 
-WinBSP uses a JSON configuration file.  
+WinPSP uses a JSON configuration file.  
 Example:
 
 ```json
 {
-  "command": "cmd /C C:\\ProgramData\\winbsp\\shutdown.cmd",
+  "command": "cmd /C C:\\ProgramData\\winPSP\\shutdown.cmd",
   "log_count": 7,
   "timeout": 300
 }
@@ -84,29 +83,73 @@ Example:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| **command** | string | The command WinBSP will execute when the system enters the PRESHUTDOWN phase. This can be a batch file, PowerShell script, or any executable. |
-| **log_count** | integer | Number of log lines to keep in WinBSP’s in‑memory ring buffer. |
-| **timeout** | integer | Maximum number of seconds WinBSP will block shutdown while waiting for the command to finish. If the timeout is reached, WinBSP stops waiting and allows shutdown to continue. |
+| **command** | string | The command WinPSP will execute when the system enters the PRESHUTDOWN phase. This can be a batch file, PowerShell script, or any executable. |
+| **log_count** | integer | Number of log lines to keep in WinPSP’s in‑memory ring buffer. |
+| **timeout** | integer | Maximum number of seconds WinPSP will block shutdown while waiting for the command to finish. If the timeout is reached, WinPSP stops waiting and allows shutdown to continue. |
 
 Specify the config path using:
 
 ```
-winbsp --config C:\ProgramData\WinBSP\config.json
+WinPSP --config C:\ProgramData\WinPSP\config.json
 ```
 
 When running as a service, this flag is passed via the service’s ImagePath.
 
 ---
 
-## Optional: Start WinBSP Automatically on Shutdown
+## Optional: Start WinPSP Automatically on Shutdown
 
-If the service is set to **manual**, you can still ensure it runs during shutdown by creating a Task Scheduler trigger for **Event ID 1074**:
+If the service is set to **manual start**, you can still have WinPSP automatically start during shutdown by using a Task Scheduler trigger.
 
-- Log: `System`  
-- Event ID: `1074`  
-- Action: `sc start WinBSP`
+Trigger configuration:
 
-This allows WinBSP to run *only* during shutdown, consuming zero resources otherwise.
+- Log: `System`
+- Event ID: `1074`
+- Action: `sc start WinPSP`
+
+This allows WinPSP to run *only* during shutdown, consuming no resources during normal operation.
+
+Task Scheduler XML example:
+
+```xml
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Author>WinPSP</Author>
+    <Description>Start WinPSP service when shutdown/restart is initiated (Event ID 1074).</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <EventTrigger>
+      <Enabled>true</Enabled>
+      <Subscription>&lt;QueryList&gt;&lt;Query Id="0" Path="System"&gt;&lt;Select Path="System"&gt;*[System[(EventID=1074)]]&lt;/Select&gt;&lt;/Query&gt;&lt;/QueryList&gt;</Subscription>
+    </EventTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>S-1-5-18</UserId>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>false</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>sc.exe</Command>
+      <Arguments>start WinPSP</Arguments>
+    </Exec>
+  </Actions>
+</Task>
+```
 
 ---
 
@@ -115,7 +158,7 @@ This allows WinBSP to run *only* during shutdown, consuming zero resources other
 You can test your configuration without installing the service:
 
 ```
-winbsp --config C:\path\config.json
+winpsp --config C:\path\config.json
 ```
 
 This runs a single PRESHUTDOWN cycle and prints logs to the console.
@@ -125,7 +168,7 @@ This runs a single PRESHUTDOWN cycle and prints logs to the console.
 ## Command‑Line Options
 
 ```
---config <path>     Run WinBSP with the specified config file
+--config <path>     Run WinPSP with the specified config file
 --help              Show help message
 --version           Show version information
 ```
@@ -135,12 +178,12 @@ This runs a single PRESHUTDOWN cycle and prints logs to the console.
 ## How It Works
 
 1. Windows begins shutdown and enters the **PRESHUTDOWN** phase  
-2. WinBSP receives the `SERVICE_CONTROL_PRESHUTDOWN` control code  
-3. WinBSP executes all configured commands sequentially  
+2. WinPSP receives the `SERVICE_CONTROL_PRESHUTDOWN` control code  
+3. WinPSP executes all configured commands sequentially  
 4. Shutdown is blocked until:  
    - All commands finish, or  
    - A command hits its timeout  
-5. WinBSP exits, allowing shutdown to continue  
+5. WinPSP exits, allowing shutdown to continue  
 
 This behavior is deterministic and fully auditable.
 
@@ -148,7 +191,7 @@ This behavior is deterministic and fully auditable.
 
 ## Building from Source
 
-WinBSP is written in Go and requires no CGO.
+WinPSP is written in Go and requires no CGO.
 If you already use Go, simply run:
 
 ```
@@ -157,14 +200,14 @@ go build .
 
 ---
 
-## ⚠ Important: WinBSP does NOT wrap commands with `cmd.exe`
+## ⚠ Important: WinPSP does NOT wrap commands with `cmd.exe`
 
-WinBSP executes the configured command **exactly as provided**, without adding any shell wrapper.  
+WinPSP executes the configured command **exactly as provided**, without adding any shell wrapper.  
 This means:
 
-- WinBSP does **not** run `cmd.exe /C ...` automatically  
-- WinBSP does **not** run PowerShell automatically  
-- WinBSP does **not** interpret batch syntax unless you explicitly invoke `cmd.exe`
+- WinPSP does **not** run `cmd.exe /C ...` automatically  
+- WinPSP does **not** run PowerShell automatically  
+- WinPSP does **not** interpret batch syntax unless you explicitly invoke `cmd.exe`
 
 ### If you want to run a batch file, you MUST write:
 
@@ -175,7 +218,7 @@ This means:
 ### Why this matters
 
 Batch files (`.cmd` / `.bat`) often spawn **child shells**.  
-If the outer shell exits early while inner shells continue running, Windows will think the command has finished, and WinBSP will:
+If the outer shell exits early while inner shells continue running, Windows will think the command has finished, and WinPSP will:
 
 - stop blocking shutdown  
 - allow the system to continue shutting down  
@@ -185,10 +228,16 @@ This is a common pitfall when using batch files during shutdown.
 
 ### Recommendation
 
-If you use batch files:
+If you prefer to use batch files:
 
-- Ensure your script does **not** spawn additional shells  
+- Ensure the script does **not** spawn additional child `cmd.exe` processes  
 - Or rewrite the logic in PowerShell  
-- Or call the batch file through `cmd /C` and ensure it runs synchronously
+- Or invoke the batch file through `cmd /C` and ensure it runs synchronously  
 
-WinBSP guarantees deterministic behavior only when the configured command behaves synchronously.
+WinPSP can only guarantee deterministic behavior when the executed command runs synchronously.
+
+Commands that may spawn child processes or cause the parent shell to exit prematurely include:
+
+- `timeout`
+- `start`
+- `exit 0` (when used without the `/b` flag)
