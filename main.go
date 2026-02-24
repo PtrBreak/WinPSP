@@ -31,8 +31,8 @@ const (
 
 type Config struct {
 	Command  string `json:"command"`
-	LogCount int    `json:"log_count"`
-	Timeout  int    `json:"timeout"` // seconds
+	LogCount *int   `json:"log_count"`
+	Timeout  *int   `json:"timeout"` // seconds
 }
 
 type winpspService struct {
@@ -66,7 +66,7 @@ func main() {
 	// 交互模式：测试配置文件
 	// -----------------------------
 	if *testMode {
-		fmt.Println("WinPSP version 0.1.1")
+		fmt.Println("WinPSP version 0.1.2")
 		fmt.Println("WinPSP: Testing config file...")
 
 		data, err := os.ReadFile(defaultConfigPath)
@@ -88,16 +88,16 @@ func main() {
 			fmt.Printf("command: %s\n", cfg.Command)
 		}
 
-		if cfg.Timeout <= 0 {
+		if cfg.Timeout == nil {
 			fmt.Printf("timeout: default (%d seconds)\n", defaultTimeoutSecs)
 		} else {
-			fmt.Printf("timeout: %d seconds\n", cfg.Timeout)
+			fmt.Printf("timeout: %d seconds\n", *cfg.Timeout)
 		}
 
-		if cfg.LogCount <= 0 {
+		if cfg.LogCount == nil {
 			fmt.Printf("log_count: default (%d files)\n", defaultLogCount)
 		} else {
-			fmt.Printf("log_count: %d files\n", cfg.LogCount)
+			fmt.Printf("log_count: %d files\n", *cfg.LogCount)
 		}
 
 		fmt.Println("Config test completed.")
@@ -107,7 +107,7 @@ func main() {
 	// -----------------------------
 	// 交互模式：无参数 → 执行一次
 	// -----------------------------
-	fmt.Println("WinPSP version 0.1.1")
+	fmt.Println("WinPSP version 0.1.2")
 	fmt.Println("Running in interactive mode (debug).")
 
 	s := &winpspService{configPath: defaultConfigPath}
@@ -182,11 +182,14 @@ func (s *winpspService) loadConfig() error {
 		return errors.New("empty command in config")
 	}
 
-	if cfg.LogCount <= 0 {
-		cfg.LogCount = defaultLogCount
+	if cfg.LogCount == nil {
+		v := defaultLogCount
+		cfg.LogCount = &v
 	}
-	if cfg.Timeout <= 0 {
-		cfg.Timeout = defaultTimeoutSecs
+
+	if cfg.Timeout == nil {
+		v := defaultTimeoutSecs
+		cfg.Timeout = &v
 	}
 
 	s.config = &cfg
@@ -259,7 +262,10 @@ func (s *winpspService) handleShutdownOnce() error {
 	logLine("WinPSP: Shutdown triggered (PRESHUTDOWN)")
 	logLine("Running: %s", s.config.Command)
 
-	exitCode, timedOut, execErr := runCommandWithTimeout(s.config.Command, time.Duration(s.config.Timeout)*time.Second)
+	exitCode, timedOut, execErr := runCommandWithTimeout(
+		s.config.Command,
+		time.Duration(*s.config.Timeout)*time.Second,
+	)
 
 	if execErr != nil && !timedOut {
 		logLine("Command error: %v", execErr)
@@ -277,13 +283,25 @@ func (s *winpspService) handleShutdownOnce() error {
 // -------------------- 日志文件管理 --------------------
 
 func (s *winpspService) openLogFile() (*os.File, io.Writer, error) {
+	if s.config == nil || s.config.LogCount == nil {
+		// 不可能发生，因为 loadConfig 会填默认值
+		// 但为了未来维护安全，可以保留默认行为
+	} else if *s.config.LogCount == 0 {
+		return nil, nil, nil
+	}
+
 	cfgDir := filepath.Dir(s.configPath)
 	if err := os.MkdirAll(cfgDir, 0755); err != nil {
 		return nil, nil, err
 	}
 
 	// 日志轮换
-	if err := rotateLogs(cfgDir, s.config.LogCount); err != nil {
+	logCount := defaultLogCount
+	if s.config != nil && s.config.LogCount != nil {
+		logCount = *s.config.LogCount
+	}
+
+	if err := rotateLogs(cfgDir, logCount); err != nil {
 		// 轮换失败不阻止继续写新日志
 	}
 
