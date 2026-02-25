@@ -219,6 +219,8 @@ Notes:
 - All services will be allowed to run longer  
 - Windows only reads this value at boot; a reboot is required for changes to take effect
 
+Modifying this value may significantly increase the time between clicking “Shut down” and the system actually powering off. It is recommended to set this timeout to roughly 2–3 times the actual execution time of the program or script you need to run, rather than using excessively large values such as 300 or 600 seconds.
+
 ---
 
 ## Interactive Mode (Debugging)
